@@ -5,7 +5,7 @@ import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
 import kotlinx.android.synthetic.main.activity_image_recognition.*
 
-class ImageRecognitionActivity : AppCompatActivity() {
+class LiveImageRecognitionActivity : AppCompatActivity() {
     private lateinit var cameraPreview: CameraPreview
 
     private lateinit var cameraWrapper: CameraWrapper

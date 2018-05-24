@@ -2,4 +2,5 @@
     <string name="app_name">ImageRecognition</string>
 
     <string name="label_image_recognition">Image Recognition</string>
+    <string name="label_live_image_recognition">Live Image Recognition</string>
 </resources>
