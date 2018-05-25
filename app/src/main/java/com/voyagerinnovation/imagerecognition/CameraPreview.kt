@@ -46,7 +46,7 @@ class CameraPreview(context: Context, private val cameraWrapper: CameraWrapper, 
             setupCameraParameters()
             cameraWrapper.camera.setPreviewDisplay(holder)
             cameraWrapper.camera.setDisplayOrientation(getDisplayOrientation())
-            cameraWrapper.camera.setOneShotPreviewCallback(previewCallback)
+            cameraWrapper.camera.setPreviewCallback(previewCallback)
             cameraWrapper.camera.startPreview()
             if (autoFocus) {
                 if (surfaceCreated) { // check if surface created before using autofocus
@@ -65,7 +65,7 @@ class CameraPreview(context: Context, private val cameraWrapper: CameraWrapper, 
             previewing = false
             holder.removeCallback(this)
             cameraWrapper.camera.cancelAutoFocus()
-            cameraWrapper.camera.setOneShotPreviewCallback(null)
+            cameraWrapper.camera.setPreviewCallback(null)
             cameraWrapper.camera.stopPreview()
         } catch (e: Exception) {
             e.printStackTrace()
@@ -176,7 +176,7 @@ class CameraPreview(context: Context, private val cameraWrapper: CameraWrapper, 
         setLayoutParams(layoutParams)
     }
 
-    private fun getDisplayOrientation(): Int {
+    fun getDisplayOrientation(): Int {
         val info = Camera.CameraInfo()
         if (cameraWrapper.cameraId == -1) {
             Camera.getCameraInfo(Camera.CameraInfo.CAMERA_FACING_BACK, info)
