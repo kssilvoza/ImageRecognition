@@ -2,8 +2,8 @@ package com.voyagerinnovation.imagerecognition
 
 import android.content.Context
 import android.content.pm.PackageManager
-import android.content.res.Configuration
 import android.hardware.Camera
+import timber.log.Timber
 
 class CameraUtility {
     companion object {
@@ -48,6 +48,7 @@ class CameraUtility {
             var smallestPictureSize : Camera.Size? = null
             var smallestArea = Int.MAX_VALUE
             for (currPictureSize in camera.parameters.supportedPictureSizes) {
+                Timber.d("Available Picture Sizes: ${currPictureSize?.width} ${currPictureSize?.height}")
                 val currArea = currPictureSize.width * currPictureSize.height
                 if (currArea < smallestArea) {
                     smallestPictureSize = currPictureSize
@@ -55,10 +56,29 @@ class CameraUtility {
                 }
             }
 
+            Timber.d("Smallest Picture Size: ${smallestPictureSize?.width} ${smallestPictureSize?.height}")
+
             return smallestPictureSize
         }
 
-//        fun getRotatedData(data: ByteArray, camera: Camera, orientation: Int, rotationCount: Int): ImageWrapper {
+        fun getSmallestPreviewSize(camera: Camera) : Camera.Size? {
+            var smallestPreviewSize : Camera.Size? = null
+            var smallestArea = Int.MAX_VALUE
+            for (currPreviewSize in camera.parameters.supportedPreviewSizes) {
+                Timber.d("Available Preview Sizes: ${currPreviewSize?.width} ${currPreviewSize?.height}")
+                val currArea = currPreviewSize.width * currPreviewSize.height
+                if (currArea < smallestArea) {
+                    smallestPreviewSize = currPreviewSize
+                    smallestArea = currArea
+                }
+            }
+
+            Timber.d("Smallest Preview Size: ${smallestPreviewSize?.width} ${smallestPreviewSize?.height}")
+
+            return smallestPreviewSize
+        }
+
+//        fun getRotatedData(data: ByteArray, camera: Camera, orientation: Int, rotationCount: Int): ByteArray {
 //            val parameters = camera.parameters
 //            val size = parameters.previewSize
 //            var width = size.width
@@ -85,9 +105,9 @@ class CameraUtility {
 //                    }
 //                }
 //
-//                return ImageWrapper(newData, width, height)
+//                return newData
 //            } else {
-//                return ImageWrapper(data, width, height)
+//                return data
 //            }
 //        }
 

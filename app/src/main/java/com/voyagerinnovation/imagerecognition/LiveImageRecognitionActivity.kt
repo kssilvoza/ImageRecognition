@@ -1,6 +1,7 @@
 package com.voyagerinnovation.imagerecognition
 
 import android.content.Context
+import android.content.Intent
 import android.hardware.*
 import android.os.AsyncTask
 import android.os.Bundle
@@ -15,58 +16,12 @@ import java.io.FileOutputStream
 class LiveImageRecognitionActivity : AppCompatActivity() {
     private lateinit var cameraPreview: CameraPreview
 
-    private lateinit var cameraWrapper: CameraWrapper
-
     private lateinit var sensorManager: SensorManager
     private lateinit var accelerometer: Sensor
 
     private val apiHelper = ApiHelper()
 
-    private val previewCallback = Camera.PreviewCallback {
-        data, camera ->
-//            Timber.d("onPreviewFrame")
-//
-//            val parameters = camera.parameters
-//            val size = parameters.previewSize
-//            var width = size.width
-//            var height = size.height
-//
-//            var newData = data
-//            if (DisplayUtility.getScreenOrientation(this) == Configuration.ORIENTATION_PORTRAIT) {
-//                val rotationCount = CameraUtility.getRotationCount(cameraPreview)
-//                if (rotationCount == 1 || rotationCount == 3) {
-//                    val tmp = width
-//                    width = height
-//                    height = tmp
-//                }
-//                newData = CameraUtility.getRotatedData(data, camera, rotationCount)
-//            }
-//            val imageWrapper = ImageWrapper(newData, width, height)
-//
-//            val orientation = DisplayUtility.getScreenOrientation(this)
-//            val rotationCount = cameraPreview.getDisplayOrientation() / 90
-//
-//            val imageWrapper = CameraUtility.getRotatedData(data, camera, orientation, rotationCount)
-//            val parameters = camera.parameters
-//            val size = parameters.previewSize
-//            val width = size.width
-//            val height = size.height
-//            val imageWrapper = ImageWrapper(data, width, height)
-//
-//            val yuvImage = YuvImage(imageWrapper.data, parameters.previewFormat, imageWrapper.width, imageWrapper.height, null)
-//            val out = ByteArrayOutputStream()
-//
-//            yuvImage.compressToJpeg(Rect(0, 0, imageWrapper.width, imageWrapper.height), 50, out)
-//            val imageBytes = out.toByteArray()
-//            val image = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
-//
-//            val image = ImageUtility.convertToBitmap(imageWrapper.data, imageWrapper.width, imageWrapper.height)
-//
-//            runOnUiThread {
-//                Timber.d("Set Image Bitmap")
-//                imageview.setImageBitmap(image)
-//            }
-    }
+    private var data: ByteArray = ByteArray(0)
 
     private val accelerometerListener = object : SensorEventListener {
         private val UPDATE_TIME = 100
@@ -87,7 +42,7 @@ class LiveImageRecognitionActivity : AppCompatActivity() {
             if (steadyCount >= STEADY_COUNT_LIMIT) {
                 // TODO - Add Snackbar Prompt
                 Timber.d("Phone is steady")
-                cameraWrapper.camera.takePicture(null, null, jpegCallback)
+                cameraPreview.takePicture(null, null, jpegCallback)
                 steadyCount = 0
                 isListening = false
             }
@@ -125,30 +80,21 @@ class LiveImageRecognitionActivity : AppCompatActivity() {
         }
     }
 
+    private val jpegCallback = Camera.PictureCallback { data, camera ->
+        this.data = data
+        ShowCapturedImageAsync().execute(data)
+    }
+
     private val doImageRecognitionListener = object : ApiHelper.Listener<DoImageRecognitionResponse> {
         override fun onSuccess(response: DoImageRecognitionResponse) {
             Timber.d(response.toString())
+            val result = ImageRecognitionUtility.checkImageRecognitionResponse(response)
+            checkImageRecognitionResult(result, response)
         }
 
         override fun onError(throwable: Throwable) {
-            throwable.printStackTrace()
-//            accelerometerListener.isListening = true
+            accelerometerListener.isListening = true
         }
-    }
-
-    private val jpegCallback = Camera.PictureCallback { data, camera ->
-//        val parameters = camera.parameters
-//        val size = parameters.previewSize
-//        val width = size.width
-//        val height = size.height
-//
-//        val yuvImage = YuvImage(data, parameters.previewFormat, width, height, null)
-//        val out = ByteArrayOutputStream()
-//
-//        yuvImage.compressToJpeg(Rect(0, 0, width, height), 50, out)
-//        val imageBytes = out.toByteArray()
-//        val image = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
-        ShowCapturedImageAsync().execute(data)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -177,7 +123,9 @@ class LiveImageRecognitionActivity : AppCompatActivity() {
                 if (smallestPictureSize != null) {
                     camera.parameters.setPictureSize(smallestPictureSize.width, smallestPictureSize.height)
                 }
-                cameraWrapper = CameraWrapper(camera, CameraUtility.getDefaultCameraId())
+                val cameraWrapper = CameraWrapper(camera, CameraUtility.getDefaultCameraId())
+                cameraPreview = CameraPreview(this, cameraWrapper)
+                layout.addView(cameraPreview)
             } else {
                 finish()
             }
@@ -190,8 +138,6 @@ class LiveImageRecognitionActivity : AppCompatActivity() {
     }
 
     private fun initializeViews() {
-        cameraPreview = CameraPreview(this, cameraWrapper, null)
-        layout.addView(cameraPreview)
     }
 
     private fun listenToAccelerometer() {
@@ -200,6 +146,28 @@ class LiveImageRecognitionActivity : AppCompatActivity() {
 
     private fun unlistenToAccelerometer() {
         sensorManager.unregisterListener(accelerometerListener)
+    }
+
+    private fun checkImageRecognitionResult(result: Int, doImageRecognitionResponse: DoImageRecognitionResponse) {
+        when(result) {
+            ImageRecognitionUtility.HUMAN_NATURE, ImageRecognitionUtility.DOGS, ImageRecognitionUtility.OTHERS -> {
+                Timber.d(doImageRecognitionResponse.toString())
+                startResultActivity(ResultActivity.TYPE_IMAGE_RECOGNITION, doImageRecognitionResponse.toString())
+            }
+            ImageRecognitionUtility.QR_CODE -> {
+                val orientation = DisplayUtility.getScreenOrientation(this)
+                val rotationCount = cameraPreview.getRotationCount()
+                val qrCodeResult = QRCodeUtility.getQRCodeResult(data, cameraPreview.cameraWrapper.camera, orientation, rotationCount)
+                if (qrCodeResult != null) {
+                    startResultActivity(ResultActivity.TYPE_QR_CODE, qrCodeResult.text)
+                } else {
+                    Timber.d("Error detecting QR Code")
+                }
+            }
+            ImageRecognitionUtility.NONE -> {
+                accelerometerListener.isListening = true
+            }
+        }
     }
 
     private inner class ShowCapturedImageAsync : AsyncTask<ByteArray, Void, File?>() {
@@ -234,6 +202,14 @@ class LiveImageRecognitionActivity : AppCompatActivity() {
                 apiHelper.doImageRecognition(file, doImageRecognitionListener)
             }
         }
+    }
+
+    private fun startResultActivity(type: Int, result: String) {
+        val intent = Intent(this, ResultActivity::class.java)
+        intent.putExtra(ResultActivity.KEY_RESULT_TYPE, type)
+        intent.putExtra(ResultActivity.KEY_RESULT, result)
+        startActivity(intent)
+        finish()
     }
 
     companion object {

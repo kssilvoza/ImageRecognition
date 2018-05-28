@@ -8,7 +8,7 @@ import android.os.Handler
 import android.view.*
 import timber.log.Timber
 
-class CameraPreview(context: Context, private val cameraWrapper: CameraWrapper, private val previewCallback: Camera.PreviewCallback) : SurfaceView(context), SurfaceHolder.Callback {
+class CameraPreview(context: Context, val cameraWrapper: CameraWrapper) : SurfaceView(context), SurfaceHolder.Callback {
     private val autoFocusHandler = Handler()
 
     private var previewing = true
@@ -46,7 +46,6 @@ class CameraPreview(context: Context, private val cameraWrapper: CameraWrapper, 
             setupCameraParameters()
             cameraWrapper.camera.setPreviewDisplay(holder)
             cameraWrapper.camera.setDisplayOrientation(getDisplayOrientation())
-            cameraWrapper.camera.setPreviewCallback(previewCallback)
             cameraWrapper.camera.startPreview()
             if (autoFocus) {
                 if (surfaceCreated) { // check if surface created before using autofocus
@@ -72,10 +71,17 @@ class CameraPreview(context: Context, private val cameraWrapper: CameraWrapper, 
         }
     }
 
+    fun takePicture(shutterCallback: Camera.ShutterCallback?, rawCallback: Camera.PictureCallback?,  jpegCallback: Camera.PictureCallback?) {
+        cameraWrapper.camera.takePicture(shutterCallback, rawCallback, jpegCallback)
+    }
+
     private fun setupCameraParameters() {
         val optimalSize = getOptimalPreviewSize()
+        val pictureSize = CameraUtility.getSmallestPictureSize(cameraWrapper.camera)
+//        val optimalSize = CameraUtility.getSmallestPreviewSize(cameraWrapper.camera)
         val parameters = cameraWrapper.camera.parameters
         parameters.setPreviewSize(optimalSize!!.width, optimalSize.height)
+        parameters.setPictureSize(pictureSize!!.width, pictureSize.height)
         cameraWrapper.camera.parameters = parameters
         adjustViewSize(optimalSize)
     }
@@ -204,6 +210,10 @@ class CameraPreview(context: Context, private val cameraWrapper: CameraWrapper, 
             result = (info.orientation - degrees + 360) % 360
         }
         return result
+    }
+
+    fun getRotationCount() : Int {
+        return getDisplayOrientation() / 90
     }
 
     private fun getScreenOrientation(context: Context): Int {
