@@ -2,14 +2,18 @@ package com.voyagerinnovation.imagerecognition
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.hardware.*
 import android.os.AsyncTask
 import android.os.Bundle
-import android.os.Environment
 import android.support.v7.app.AppCompatActivity
 import kotlinx.android.synthetic.main.activity_image_recognition.*
 import timber.log.Timber
 import java.io.File
+import android.graphics.BitmapFactory
+import android.os.Environment
+import android.view.View
+import com.google.zxing.Result
 import java.io.FileOutputStream
 
 
@@ -21,7 +25,10 @@ class LiveImageRecognitionActivity : AppCompatActivity() {
 
     private val apiHelper = ApiHelper()
 
+    private var cameraId: Int = 0
+
     private var data: ByteArray = ByteArray(0)
+    private var bitmap: Bitmap? = null
 
     private val accelerometerListener = object : SensorEventListener {
         private val UPDATE_TIME = 100
@@ -117,13 +124,14 @@ class LiveImageRecognitionActivity : AppCompatActivity() {
 
     private fun initializeCamera() {
         if (CameraUtility.checkCameraHardware(this)) {
-            val camera = CameraUtility.getCameraInstance(CameraUtility.getDefaultCameraId())
+            cameraId = CameraUtility.getDefaultCameraId()
+            val camera = CameraUtility.getCameraInstance(cameraId)
             if (camera != null) {
                 val smallestPictureSize = CameraUtility.getSmallestPictureSize(camera)
                 if (smallestPictureSize != null) {
                     camera.parameters.setPictureSize(smallestPictureSize.width, smallestPictureSize.height)
                 }
-                val cameraWrapper = CameraWrapper(camera, CameraUtility.getDefaultCameraId())
+                val cameraWrapper = CameraWrapper(camera, cameraId)
                 cameraPreview = CameraPreview(this, cameraWrapper)
                 layout.addView(cameraPreview)
             } else {
@@ -149,15 +157,22 @@ class LiveImageRecognitionActivity : AppCompatActivity() {
     }
 
     private fun checkImageRecognitionResult(result: Int, doImageRecognitionResponse: DoImageRecognitionResponse) {
+        imageview.setImageBitmap(bitmap)
+        imageview.visibility = View.VISIBLE
+
         when(result) {
             ImageRecognitionUtility.HUMAN_NATURE, ImageRecognitionUtility.DOGS, ImageRecognitionUtility.OTHERS -> {
                 Timber.d(doImageRecognitionResponse.toString())
                 startResultActivity(ResultActivity.TYPE_IMAGE_RECOGNITION, doImageRecognitionResponse.toString())
             }
             ImageRecognitionUtility.QR_CODE -> {
-                val orientation = DisplayUtility.getScreenOrientation(this)
-                val rotationCount = cameraPreview.getRotationCount()
-                val qrCodeResult = QRCodeUtility.getQRCodeResult(data, cameraPreview.cameraWrapper.camera, orientation, rotationCount)
+//                val orientation = DisplayUtility.getScreenOrientation(this)
+//                val rotationCount = cameraPreview.getRotationCount()
+//                val qrCodeResult = QRCodeUtility.getQRCodeResult(data, cameraPreview.cameraWrapper.camera, orientation, rotationCount)
+                var qrCodeResult : Result? = null
+                if (bitmap != null) {
+                    qrCodeResult = QRCodeUtility.getQRCodeResult(bitmap!!)
+                }
                 if (qrCodeResult != null) {
                     startResultActivity(ResultActivity.TYPE_QR_CODE, qrCodeResult.text)
                 } else {
@@ -170,9 +185,15 @@ class LiveImageRecognitionActivity : AppCompatActivity() {
         }
     }
 
-    private inner class ShowCapturedImageAsync : AsyncTask<ByteArray, Void, File?>() {
-        override fun doInBackground(vararg args: ByteArray): File? {
+    private inner class ShowCapturedImageAsync : AsyncTask<ByteArray, Void, Pair<Bitmap, File>?>() {
+        override fun doInBackground(vararg args: ByteArray): Pair<Bitmap, File>? {
             val data = args[0]
+
+            val degree = CameraUtility.getRotationAngle(cameraId, this@LiveImageRecognitionActivity)
+            val originalBitmap = BitmapFactory.decodeByteArray(data, 0, data.size)
+            val rotatedBitmap = ImageUtility.rotate(originalBitmap, degree)
+
+            originalBitmap.recycle()
 
             val directory = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).path + File.separator + FOLDER_NAME
 
@@ -183,13 +204,13 @@ class LiveImageRecognitionActivity : AppCompatActivity() {
             }
 
             val filePath = pictureFileDir.path + File.separator + "Test.jpg"
-            val pictureFile = File(filePath)
+            val file = File(filePath)
 
             try {
-                val out = FileOutputStream(pictureFile)
-                out.write(data)
+                val out = FileOutputStream(file)
+                rotatedBitmap.compress(Bitmap.CompressFormat.JPEG, 80, out)
                 out.close()
-                return pictureFile
+                return Pair(rotatedBitmap, file)
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -197,9 +218,11 @@ class LiveImageRecognitionActivity : AppCompatActivity() {
             return null
         }
 
-        override fun onPostExecute(file: File?) {
-            if (file != null) {
-                apiHelper.doImageRecognition(file, doImageRecognitionListener)
+        override fun onPostExecute(pair: Pair<Bitmap, File>?) {
+            if (pair != null) {
+                bitmap = pair.first
+                Timber.d("onPostExecute Bitmap ${bitmap!!.width} ${bitmap!!.height}")
+                apiHelper.doImageRecognition(pair.second, doImageRecognitionListener)
             }
         }
     }

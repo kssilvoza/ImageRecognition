@@ -76,9 +76,10 @@ class CameraPreview(context: Context, val cameraWrapper: CameraWrapper) : Surfac
     }
 
     private fun setupCameraParameters() {
-        val optimalSize = getOptimalPreviewSize()
-        val pictureSize = CameraUtility.getSmallestPictureSize(cameraWrapper.camera)
 //        val optimalSize = CameraUtility.getSmallestPreviewSize(cameraWrapper.camera)
+
+        val pictureSize = CameraUtility.getSmallestPictureSize(cameraWrapper.camera)
+        val optimalSize = getOptimalPreviewSize(pictureSize!!.width, pictureSize.height)
         val parameters = cameraWrapper.camera.parameters
         parameters.setPreviewSize(optimalSize!!.width, optimalSize.height)
         parameters.setPictureSize(pictureSize!!.width, pictureSize.height)
@@ -118,6 +119,39 @@ class CameraPreview(context: Context, val cameraWrapper: CameraWrapper) : Surfac
         if (optimalSize == null) {
             minDiff = java.lang.Double.MAX_VALUE
             for (size in sizes!!) {
+                if (Math.abs(size.height - targetHeight) < minDiff) {
+                    optimalSize = size
+                    minDiff = Math.abs(size.height - targetHeight).toDouble()
+                }
+            }
+        }
+        return optimalSize
+    }
+
+    private fun getOptimalPreviewSize(w: Int, h: Int): Camera.Size? {
+        val sizes = cameraWrapper.camera.parameters.supportedPreviewSizes
+
+        val targetRatio = w.toDouble() / h
+
+        if (sizes == null) return null
+
+        var optimalSize: Camera.Size? = null
+        var minDiff = java.lang.Double.MAX_VALUE
+
+        val targetHeight = h
+
+        for (size in sizes) {
+            val ratio = size.width.toDouble() / size.height
+            if (Math.abs(ratio - targetRatio) > ASPECT_TOLERANCE_DEFAULT) continue
+            if (Math.abs(size.height - targetHeight) < minDiff) {
+                optimalSize = size
+                minDiff = Math.abs(size.height - targetHeight).toDouble()
+            }
+        }
+
+        if (optimalSize == null) {
+            minDiff = java.lang.Double.MAX_VALUE
+            for (size in sizes) {
                 if (Math.abs(size.height - targetHeight) < minDiff) {
                     optimalSize = size
                     minDiff = Math.abs(size.height - targetHeight).toDouble()

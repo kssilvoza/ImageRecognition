@@ -1,6 +1,7 @@
 package com.voyagerinnovation.imagerecognition;
 
 import android.graphics.Bitmap;
+import android.graphics.Matrix;
 
 public class ImageUtility {
     public static Bitmap convertToBitmap(byte[] pixelArray, int width, int height) {
@@ -20,5 +21,15 @@ public class ImageUtility {
             }
         }
         return bmp;
+    }
+
+    public static Bitmap rotate(Bitmap bitmap, int degree) {
+        int w = bitmap.getWidth();
+        int h = bitmap.getHeight();
+
+        Matrix mtx = new Matrix();
+        mtx.postRotate(degree);
+
+        return Bitmap.createBitmap(bitmap, 0, 0, w, h, mtx, true);
     }
 }

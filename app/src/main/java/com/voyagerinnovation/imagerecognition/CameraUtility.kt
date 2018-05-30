@@ -4,6 +4,14 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.hardware.Camera
 import timber.log.Timber
+import android.view.Surface.ROTATION_270
+import android.view.Surface.ROTATION_180
+import android.view.Surface.ROTATION_90
+import android.view.Surface.ROTATION_0
+import android.support.v4.view.ViewCompat.getRotation
+import android.app.Activity
+import android.view.Surface
+
 
 class CameraUtility {
     companion object {
@@ -44,8 +52,8 @@ class CameraUtility {
             return defaultCameraId
         }
 
-        fun getSmallestPictureSize(camera: Camera) : Camera.Size? {
-            var smallestPictureSize : Camera.Size? = null
+        fun getSmallestPictureSize(camera: Camera): Camera.Size? {
+            var smallestPictureSize: Camera.Size? = null
             var smallestArea = Int.MAX_VALUE
             for (currPictureSize in camera.parameters.supportedPictureSizes) {
                 Timber.d("Available Picture Sizes: ${currPictureSize?.width} ${currPictureSize?.height}")
@@ -61,21 +69,25 @@ class CameraUtility {
             return smallestPictureSize
         }
 
-        fun getSmallestPreviewSize(camera: Camera) : Camera.Size? {
-            var smallestPreviewSize : Camera.Size? = null
-            var smallestArea = Int.MAX_VALUE
-            for (currPreviewSize in camera.parameters.supportedPreviewSizes) {
-                Timber.d("Available Preview Sizes: ${currPreviewSize?.width} ${currPreviewSize?.height}")
-                val currArea = currPreviewSize.width * currPreviewSize.height
-                if (currArea < smallestArea) {
-                    smallestPreviewSize = currPreviewSize
-                    smallestArea = currArea
-                }
+        fun getRotationAngle(cameraId: Int, activity: Activity): Int {
+            val info = android.hardware.Camera.CameraInfo()
+            android.hardware.Camera.getCameraInfo(cameraId, info)
+            val rotation = activity.windowManager.defaultDisplay.rotation
+            var degrees = 0
+            when (rotation) {
+                Surface.ROTATION_0 -> degrees = 0
+                Surface.ROTATION_90 -> degrees = 90
+                Surface.ROTATION_180 -> degrees = 180
+                Surface.ROTATION_270 -> degrees = 270
             }
-
-            Timber.d("Smallest Preview Size: ${smallestPreviewSize?.width} ${smallestPreviewSize?.height}")
-
-            return smallestPreviewSize
+            var result: Int
+            if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
+                result = (info.orientation + degrees) % 360
+                result = (360 - result) % 360 // compensate the mirror
+            } else { // back-facing
+                result = (info.orientation - degrees + 360) % 360
+            }
+            return result
         }
 
 //        fun getRotatedData(data: ByteArray, camera: Camera, orientation: Int, rotationCount: Int): ByteArray {

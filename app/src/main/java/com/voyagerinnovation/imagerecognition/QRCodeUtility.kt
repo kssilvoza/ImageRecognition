@@ -1,31 +1,67 @@
 package com.voyagerinnovation.imagerecognition
 
-import android.content.res.Configuration
+import android.graphics.Bitmap
 import android.hardware.Camera
 import com.google.zxing.*
 import com.google.zxing.common.HybridBinarizer
 import timber.log.Timber
 
+
 class QRCodeUtility {
     companion object {
-        fun getQRCodeResult(data: ByteArray, camera: Camera, orientation: Int, rotationCount: Int) : Result? {
-            Timber.d("Byte array size: ${data.size}")
-            Timber.d("Preview size:  ${camera.parameters.previewSize.width} ${camera.parameters.previewSize.height}")
-            Timber.d("Picture size: ${camera.parameters.pictureSize.width} ${camera.parameters.pictureSize.height}")
+        fun getQRCodeResult(bitmap: Bitmap): Result? {
+            val intArray = IntArray(bitmap.width * bitmap.height)
+            bitmap.getPixels(intArray, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+            val source = RGBLuminanceSource(bitmap.width, bitmap.height, intArray)
+
+            var binaryBitmap = BinaryBitmap(HybridBinarizer(source))
+
+            val multiFormatReader = MultiFormatReader()
+
+            var result: Result? = null
+            try {
+                result = multiFormatReader.decodeWithState(binaryBitmap)
+            } catch (re: ReaderException) {
+                re.printStackTrace()
+            } catch (npe: NullPointerException) {
+                npe.printStackTrace()
+            } catch (ae: ArrayIndexOutOfBoundsException) {
+                ae.printStackTrace()
+            } finally {
+                multiFormatReader.reset()
+            }
+
+            if (result == null) {
+                val invertedSource = source.invert()
+                binaryBitmap = BinaryBitmap(HybridBinarizer(invertedSource))
+
+                try {
+                    result = multiFormatReader.decodeWithState(binaryBitmap)
+                } catch (nfe: NotFoundException) {
+                    nfe.printStackTrace()
+                } finally {
+                    multiFormatReader.reset()
+                }
+            }
+
+            return result
+        }
+
+        fun getQRCodeResult(data: ByteArray, camera: Camera, orientation: Int, rotationCount: Int): Result? {
             val parameters = camera.parameters
             val size = parameters.pictureSize
             var width = size.width
             var height = size.height
 
             var newData = data
-            if (orientation == Configuration.ORIENTATION_PORTRAIT) {
-                if (rotationCount == 1 || rotationCount == 3) {
-                    val tmp = width
-                    width = height
-                    height = tmp
-                }
-                newData = CameraUtility.getRotatedData(data, camera, rotationCount)
-            }
+//            if (orientation == Configuration.ORIENTATION_PORTRAIT) {
+//                if (rotationCount == 1 || rotationCount == 3) {
+//                    val tmp = width
+//                    width = height
+//                    height = tmp
+//                }
+//                newData = CameraUtility.getRotatedData(data, camera, rotationCount)
+//            }
 
             val source = QRCodeUtility.buildLuminanceSource(newData, width, height)
             if (source != null) {
