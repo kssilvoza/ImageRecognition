@@ -27,7 +27,6 @@ class LiveImageRecognitionActivity : AppCompatActivity() {
 
     private var cameraId: Int = 0
 
-    private var data: ByteArray = ByteArray(0)
     private var bitmap: Bitmap? = null
 
     private val accelerometerListener = object : SensorEventListener {
@@ -88,7 +87,6 @@ class LiveImageRecognitionActivity : AppCompatActivity() {
     }
 
     private val jpegCallback = Camera.PictureCallback { data, camera ->
-        this.data = data
         ShowCapturedImageAsync().execute(data)
     }
 
@@ -157,18 +155,12 @@ class LiveImageRecognitionActivity : AppCompatActivity() {
     }
 
     private fun checkImageRecognitionResult(result: Int, doImageRecognitionResponse: DoImageRecognitionResponse) {
-        imageview.setImageBitmap(bitmap)
-        imageview.visibility = View.VISIBLE
-
         when(result) {
             ImageRecognitionUtility.HUMAN_NATURE, ImageRecognitionUtility.DOGS, ImageRecognitionUtility.OTHERS -> {
                 Timber.d(doImageRecognitionResponse.toString())
                 startResultActivity(ResultActivity.TYPE_IMAGE_RECOGNITION, doImageRecognitionResponse.toString())
             }
             ImageRecognitionUtility.QR_CODE -> {
-//                val orientation = DisplayUtility.getScreenOrientation(this)
-//                val rotationCount = cameraPreview.getRotationCount()
-//                val qrCodeResult = QRCodeUtility.getQRCodeResult(data, cameraPreview.cameraWrapper.camera, orientation, rotationCount)
                 var qrCodeResult : Result? = null
                 if (bitmap != null) {
                     qrCodeResult = QRCodeUtility.getQRCodeResult(bitmap!!)
@@ -220,8 +212,9 @@ class LiveImageRecognitionActivity : AppCompatActivity() {
 
         override fun onPostExecute(pair: Pair<Bitmap, File>?) {
             if (pair != null) {
+                showImage(pair.first)
+
                 bitmap = pair.first
-                Timber.d("onPostExecute Bitmap ${bitmap!!.width} ${bitmap!!.height}")
                 apiHelper.doImageRecognition(pair.second, doImageRecognitionListener)
             }
         }
@@ -233,6 +226,11 @@ class LiveImageRecognitionActivity : AppCompatActivity() {
         intent.putExtra(ResultActivity.KEY_RESULT, result)
         startActivity(intent)
         finish()
+    }
+
+    private fun showImage(bitmap: Bitmap) {
+        imageview.setImageBitmap(bitmap)
+        imageview.visibility = View.VISIBLE
     }
 
     companion object {
