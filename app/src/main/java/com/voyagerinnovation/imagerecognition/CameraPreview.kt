@@ -76,8 +76,6 @@ class CameraPreview(context: Context, val cameraWrapper: CameraWrapper) : Surfac
     }
 
     private fun setupCameraParameters() {
-//        val optimalSize = CameraUtility.getSmallestPreviewSize(cameraWrapper.camera)
-
         val pictureSize = CameraUtility.getSmallestPictureSize(cameraWrapper.camera)
         val optimalSize = getOptimalPreviewSize(pictureSize!!.width, pictureSize.height)
         val parameters = cameraWrapper.camera.parameters

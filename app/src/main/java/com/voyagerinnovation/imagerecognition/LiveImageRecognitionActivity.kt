@@ -3,17 +3,16 @@ package com.voyagerinnovation.imagerecognition
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.hardware.*
 import android.os.AsyncTask
 import android.os.Bundle
+import android.os.Environment
 import android.support.v7.app.AppCompatActivity
+import android.view.View
 import kotlinx.android.synthetic.main.activity_image_recognition.*
 import timber.log.Timber
 import java.io.File
-import android.graphics.BitmapFactory
-import android.os.Environment
-import android.view.View
-import com.google.zxing.Result
 import java.io.FileOutputStream
 
 
@@ -23,11 +22,9 @@ class LiveImageRecognitionActivity : AppCompatActivity() {
     private lateinit var sensorManager: SensorManager
     private lateinit var accelerometer: Sensor
 
+    private var cameraId = 0
+
     private val apiHelper = ApiHelper()
-
-    private var cameraId: Int = 0
-
-    private var bitmap: Bitmap? = null
 
     private val accelerometerListener = object : SensorEventListener {
         private val UPDATE_TIME = 100
@@ -90,6 +87,15 @@ class LiveImageRecognitionActivity : AppCompatActivity() {
         ShowCapturedImageAsync().execute(data)
     }
 
+    private val previewCallback = Camera.PreviewCallback { data, camera ->
+        val orientation = DisplayUtility.getScreenOrientation(this)
+        val rotationCount = cameraPreview.getRotationCount()
+        val result = QRCodeUtility.getQRCodeResult(data, camera, orientation, rotationCount)
+        if (result != null) {
+            startResultActivity(ResultActivity.TYPE_QR_CODE, result.toString())
+        }
+    }
+
     private val doImageRecognitionListener = object : ApiHelper.Listener<DoImageRecognitionResponse> {
         override fun onSuccess(response: DoImageRecognitionResponse) {
             Timber.d(response.toString())
@@ -129,6 +135,7 @@ class LiveImageRecognitionActivity : AppCompatActivity() {
                 if (smallestPictureSize != null) {
                     camera.parameters.setPictureSize(smallestPictureSize.width, smallestPictureSize.height)
                 }
+                camera.setPreviewCallback(previewCallback)
                 val cameraWrapper = CameraWrapper(camera, cameraId)
                 cameraPreview = CameraPreview(this, cameraWrapper)
                 layout.addView(cameraPreview)
@@ -160,20 +167,7 @@ class LiveImageRecognitionActivity : AppCompatActivity() {
                 Timber.d(doImageRecognitionResponse.toString())
                 startResultActivity(ResultActivity.TYPE_IMAGE_RECOGNITION, doImageRecognitionResponse.toString())
             }
-            ImageRecognitionUtility.QR_CODE -> {
-                var qrCodeResult : Result? = null
-                if (bitmap != null) {
-                    qrCodeResult = QRCodeUtility.getQRCodeResult(bitmap!!)
-                }
-                if (qrCodeResult != null) {
-                    startResultActivity(ResultActivity.TYPE_QR_CODE, qrCodeResult.text)
-                } else {
-                    Timber.d("Error detecting QR Code")
-                }
-            }
-            ImageRecognitionUtility.NONE -> {
-                accelerometerListener.isListening = true
-            }
+            else -> accelerometerListener.isListening = true
         }
     }
 
@@ -213,8 +207,6 @@ class LiveImageRecognitionActivity : AppCompatActivity() {
         override fun onPostExecute(pair: Pair<Bitmap, File>?) {
             if (pair != null) {
                 showImage(pair.first)
-
-                bitmap = pair.first
                 apiHelper.doImageRecognition(pair.second, doImageRecognitionListener)
             }
         }
