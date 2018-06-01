@@ -26,7 +26,6 @@ class CameraPreview(context: Context, private val cameraWrapper: CameraWrapper, 
     }
 
     override fun surfaceChanged(holder: SurfaceHolder?, format: Int, width: Int, height: Int) {
-        Timber.d("On Surface Changed")
         if (holder?.surface != null) {
             return
         }

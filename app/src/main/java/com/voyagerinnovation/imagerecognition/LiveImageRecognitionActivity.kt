@@ -26,6 +26,8 @@ class LiveImageRecognitionActivity : AppCompatActivity() {
 
     private val apiHelper = ApiHelper()
 
+    private var enableQRCodeDetection = true
+
     private val accelerometerListener = object : SensorEventListener {
         private val UPDATE_TIME = 100
         private val MOVEMENT_LIMIT = 0.20
@@ -88,11 +90,14 @@ class LiveImageRecognitionActivity : AppCompatActivity() {
     }
 
     private val previewCallback = Camera.PreviewCallback { data, camera ->
-        val orientation = DisplayUtility.getScreenOrientation(this)
-        val rotationCount = cameraPreview.getRotationCount()
-        val result = QRCodeUtility.getQRCodeResult(data, camera, orientation, rotationCount)
-        if (result != null) {
-            startResultActivity(ResultActivity.TYPE_QR_CODE, result.toString())
+        if (enableQRCodeDetection) {
+            val orientation = cameraPreview.getDisplayOrientation()
+            val rotationCount = cameraPreview.getRotationCount()
+            val result = QRCodeUtility.getQRCodeResult(data, camera, orientation, rotationCount)
+            if (result != null) {
+                enableQRCodeDetection = false
+                startResultActivity(ResultActivity.TYPE_QR_CODE, result.toString())
+            }
         }
     }
 
