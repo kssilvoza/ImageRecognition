@@ -52,19 +52,16 @@ class CameraUtility {
             return defaultCameraId
         }
 
-        fun getSmallestPictureSize(camera: Camera): Camera.Size? {
-            var smallestPictureSize: Camera.Size? = null
+        fun getSmallestPictureSize(camera: Camera): Camera.Size {
+            var smallestPictureSize: Camera.Size = camera.parameters.pictureSize
             var smallestArea = Int.MAX_VALUE
             for (currPictureSize in camera.parameters.supportedPictureSizes) {
-                Timber.d("Available Picture Sizes: ${currPictureSize?.width} ${currPictureSize?.height}")
                 val currArea = currPictureSize.width * currPictureSize.height
                 if (currArea < smallestArea) {
                     smallestPictureSize = currPictureSize
                     smallestArea = currArea
                 }
             }
-
-            Timber.d("Smallest Picture Size: ${smallestPictureSize?.width} ${smallestPictureSize?.height}")
 
             return smallestPictureSize
         }

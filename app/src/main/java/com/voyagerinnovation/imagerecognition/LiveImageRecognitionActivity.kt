@@ -131,13 +131,10 @@ class LiveImageRecognitionActivity : AppCompatActivity() {
             cameraId = CameraUtility.getDefaultCameraId()
             val camera = CameraUtility.getCameraInstance(cameraId)
             if (camera != null) {
-                val smallestPictureSize = CameraUtility.getSmallestPictureSize(camera)
-                if (smallestPictureSize != null) {
-                    camera.parameters.setPictureSize(smallestPictureSize.width, smallestPictureSize.height)
-                }
                 camera.setPreviewCallback(previewCallback)
+                val smallestPictureSize = CameraUtility.getSmallestPictureSize(camera)
                 val cameraWrapper = CameraWrapper(camera, cameraId)
-                cameraPreview = CameraPreview(this, cameraWrapper)
+                cameraPreview = CameraPreview(this, cameraWrapper, smallestPictureSize)
                 layout.addView(cameraPreview)
             } else {
                 finish()

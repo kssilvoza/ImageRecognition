@@ -8,7 +8,7 @@ import android.os.Handler
 import android.view.*
 import timber.log.Timber
 
-class CameraPreview(context: Context, val cameraWrapper: CameraWrapper) : SurfaceView(context), SurfaceHolder.Callback {
+class CameraPreview(context: Context, private val cameraWrapper: CameraWrapper, private val pictureSize: Camera.Size) : SurfaceView(context), SurfaceHolder.Callback {
     private val autoFocusHandler = Handler()
 
     private var previewing = true
@@ -76,11 +76,10 @@ class CameraPreview(context: Context, val cameraWrapper: CameraWrapper) : Surfac
     }
 
     private fun setupCameraParameters() {
-        val pictureSize = CameraUtility.getSmallestPictureSize(cameraWrapper.camera)
-        val optimalSize = getOptimalPreviewSize(pictureSize!!.width, pictureSize.height)
+        val optimalSize = getOptimalPreviewSize(pictureSize.width, pictureSize.height)
         val parameters = cameraWrapper.camera.parameters
         parameters.setPreviewSize(optimalSize!!.width, optimalSize.height)
-        parameters.setPictureSize(pictureSize!!.width, pictureSize.height)
+        parameters.setPictureSize(pictureSize.width, pictureSize.height)
         cameraWrapper.camera.parameters = parameters
         adjustViewSize(optimalSize)
     }
